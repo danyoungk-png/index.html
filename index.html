@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>알록달록 키즈 테트리스</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Jua', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+
+        .kids-font {
+            font-family: 'Gaegu', cursive;
+        }
+
+        /* Neumorphic & Bubble Button Styles for Kids */
+        .btn-bubble {
+            box-shadow: 0 8px 0 #3b82f6, 0 15px 20px rgba(0,0,0,0.15);
+            transition: all 0.1s ease;
+        }
+        .btn-bubble:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #3b82f6, 0 5px 10px rgba(0,0,0,0.15);
+        }
+
+        .btn-danger-bubble {
+            box-shadow: 0 8px 0 #ef4444, 0 15px 20px rgba(0,0,0,0.15);
+        }
+        .btn-danger-bubble:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #ef4444, 0 5px 10px rgba(0,0,0,0.15);
+        }
+
+        .btn-magic-bubble {
+            box-shadow: 0 8px 0 #8b5cf6, 0 15px 20px rgba(0,0,0,0.15);
+        }
+        .btn-magic-bubble:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #8b5cf6, 0 5px 10px rgba(0,0,0,0.15);
+        }
+
+        /* Pulse and Bounce Animations */
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+        }
+        .floating {
+            animation: floatAnim 3s infinite ease-in-out;
+        }
+
+        @keyframes popText {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        .pop-effect {
+            animation: popText 1s forwards ease-out;
+        }
+
+        canvas {
+            border-radius: 20px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.1), 0 10px 25px rgba(0,0,0,0.15);
+            background-color: rgba(255, 255, 255, 0.85);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-2 md:p-4 text-gray-800 select-none overflow-x-hidden">
+
+    <!-- Top Header Banner -->
+    <header class="w-full max-w-md flex items-center justify-between bg-white/90 backdrop-blur-md rounded-2xl px-4 py-2 shadow-lg mb-2 border-4 border-yellow-300">
+        <div class="flex items-center gap-2">
+            <span class="text-3xl floating">🧸</span>
+            <div>
+                <h1 class="text-xl md:text-2xl text-pink-500 font-extrabold tracking-wide leading-none">알록달록 테트리스</h1>
+                <p class="text-xs text-purple-500 font-bold">재미있는 블록 맞추기!</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="soundToggleBtn" class="bg-yellow-400 hover:bg-yellow-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-lg shadow-md transition">
+                <i class="fas fa-volume-up" id="soundIcon"></i>
+            </button>
+            <button id="pauseBtn" class="bg-blue-400 hover:bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-lg shadow-md transition">
+                <i class="fas fa-pause"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center gap-2">
+
+        <!-- Score Board & Status Banner -->
+        <div class="w-full grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white/80 rounded-xl p-2 border-2 border-pink-300 shadow">
+                <div class="text-xs text-pink-500 font-bold">점수 ⭐️</div>
+                <div id="scoreDisplay" class="text-xl font-extrabold text-pink-600">0</div>
+            </div>
+            <div class="bg-white/80 rounded-xl p-2 border-2 border-purple-300 shadow">
+                <div class="text-xs text-purple-500 font-bold">지운 줄 🧹</div>
+                <div id="linesDisplay" class="text-xl font-extrabold text-purple-600">0</div>
+            </div>
+            <div class="bg-white/80 rounded-xl p-2 border-2 border-green-300 shadow">
+                <div class="text-xs text-green-500 font-bold">단계 🚀</div>
+                <div id="levelDisplay" class="text-xl font-extrabold text-green-600">1</div>
+            </div>
+        </div>
+
+        <div class="relative flex items-start gap-3 justify-center w-full">
+            
+            <!-- Main Game Canvas -->
+            <div class="relative">
+                <canvas id="tetrisCanvas" width="240" height="432" class="border-4 border-white"></canvas>
+                
+                <!-- Floating Celebration Popups -->
+                <div id="comboPopup" class="absolute inset-0 pointer-events-none flex items-center justify-center hidden">
+                    <span id="comboText" class="text-3xl font-extrabold text-yellow-400 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] pop-effect">
+                        최고예요! 👍
+                    </span>
+                </div>
+            </div>
+
+            <!-- Right Side Panel: Next Piece + Magic Powers -->
+            <div class="flex flex-col gap-2 w-28">
+                <!-- Next Piece Preview Box -->
+                <div class="bg-white/90 rounded-2xl p-2 border-3 border-sky-300 shadow flex flex-col items-center">
+                    <span class="text-xs font-bold text-sky-600 mb-1">다음 블록 🎁</span>
+                    <canvas id="nextCanvas" width="80" height="80" class="bg-sky-50 rounded-lg border border-sky-200"></canvas>
+                </div>
+
+                <!-- Kids Magic Helper Items -->
+                <div class="bg-white/90 rounded-2xl p-2 border-3 border-purple-300 shadow flex flex-col gap-2">
+                    <div class="text-xs font-bold text-purple-600 text-center">요술 아이템 🪄</div>
+                    
+                    <!-- Magic Wand: Clears Bottom Row -->
+                    <button id="magicWandBtn" class="btn-magic-bubble bg-purple-500 hover:bg-purple-600 text-white rounded-xl py-2 px-1 text-xs font-bold flex flex-col items-center justify-center gap-1 active:translate-y-1">
+                        <span class="text-lg">🪄</span>
+                        <span>맨 밑줄 삭제</span>
+                        <span id="magicWandCount" class="bg-purple-700 text-yellow-300 px-1.5 py-0.5 rounded-full text-[10px]">3개</span>
+                    </button>
+
+                    <!-- Slow Turtle: Slows down piece speed -->
+                    <button id="slowTurtleBtn" class="btn-bubble bg-teal-400 hover:bg-teal-500 text-white rounded-xl py-2 px-1 text-xs font-bold flex flex-col items-center justify-center gap-1 active:translate-y-1">
+                        <span class="text-lg">🐢</span>
+                        <span>천천히 가기</span>
+                        <span id="slowTurtleCount" class="bg-teal-700 text-yellow-300 px-1.5 py-0.5 rounded-full text-[10px]">2개</span>
+                    </button>
+                </div>
+
+                <!-- Mode Indicator / Info -->
+                <div class="bg-yellow-100 rounded-xl p-2 border border-yellow-300 text-center">
+                    <div class="text-[11px] font-bold text-yellow-800" id="modeLabel">아장아장 모드 👶</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Big Kid-Friendly Touch Controls -->
+        <div class="w-full max-w-xs flex flex-col gap-2 mt-1">
+            <!-- Top Controls Row (Rotate & Hard Drop) -->
+            <div class="grid grid-cols-2 gap-3">
+                <button id="rotateBtn" class="btn-bubble bg-yellow-400 active:bg-yellow-500 text-white font-extrabold py-3 rounded-2xl text-lg flex items-center justify-center gap-2 border-2 border-yellow-300">
+                    <i class="fas fa-sync-alt text-xl"></i>
+                    <span>돌리기</span>
+                </button>
+                <button id="hardDropBtn" class="btn-danger-bubble bg-red-400 active:bg-red-500 text-white font-extrabold py-3 rounded-2xl text-lg flex items-center justify-center gap-2 border-2 border-red-300">
+                    <i class="fas fa-angle-double-down text-xl"></i>
+                    <span>쏙 내리기</span>
+                </button>
+            </div>
+
+            <!-- Bottom Arrow Controls Row (Left, Down, Right) -->
+            <div class="grid grid-cols-3 gap-3">
+                <button id="leftBtn" class="btn-bubble bg-blue-400 active:bg-blue-500 text-white font-extrabold py-3 rounded-2xl text-2xl flex items-center justify-center border-2 border-blue-300">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <button id="downBtn" class="btn-bubble bg-green-400 active:bg-green-500 text-white font-extrabold py-3 rounded-2xl text-2xl flex items-center justify-center border-2 border-green-300">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button id="rightBtn" class="btn-bubble bg-blue-400 active:bg-blue-500 text-white font-extrabold py-3 rounded-2xl text-2xl flex items-center justify-center border-2 border-blue-300">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer / Instructions -->
+    <footer class="mt-2 text-center text-xs text-gray-600 font-bold">
+        키보드: [←/→] 이동 | [↑] 회전 | [↓] 천천히 | [스페이스바] 쏙 내리기
+    </footer>
+
+    <!-- Start & Difficulty Select Modal Overlay -->
+    <div id="startModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center border-8 border-pink-300 shadow-2xl floating">
+            <div class="text-5xl mb-2">🧸🌈</div>
+            <h2 class="text-2xl font-extrabold text-pink-500 mb-1">알록달록 테트리스</h2>
+            <p class="text-xs text-gray-500 mb-4 font-bold">원하는 난이도를 선택해 주세요!</p>
+
+            <div class="flex flex-col gap-3">
+                <button id="startEasyBtn" class="bg-emerald-400 hover:bg-emerald-500 text-white font-extrabold py-3 px-4 rounded-2xl text-lg shadow-lg transition flex items-center justify-between border-2 border-emerald-300">
+                    <span>👶 아장아장 (매우 쉬움)</span>
+                    <i class="fas fa-star text-yellow-200"></i>
+                </button>
+                <button id="startNormalBtn" class="bg-sky-400 hover:bg-sky-500 text-white font-extrabold py-3 px-4 rounded-2xl text-lg shadow-lg transition flex items-center justify-between border-2 border-sky-300">
+                    <span>🎈 싱글벙글 (보통)</span>
+                    <i class="fas fa-smile text-yellow-200"></i>
+                </button>
+                <button id="startHardBtn" class="bg-orange-400 hover:bg-orange-500 text-white font-extrabold py-3 px-4 rounded-2xl text-lg shadow-lg transition flex items-center justify-between border-2 border-orange-300">
+                    <span>🚀 씽씽 (빠름)</span>
+                    <i class="fas fa-rocket text-yellow-200"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center border-8 border-yellow-300 shadow-2xl">
+            <div class="text-5xl mb-2">👏🎉</div>
+            <h2 class="text-2xl font-extrabold text-purple-600 mb-1">참 잘했어요!</h2>
+            <p class="text-sm text-gray-600 mb-3 font-bold">정말 멋진 블록 건축가예요!</p>
+
+            <div class="bg-yellow-50 rounded-2xl p-3 mb-4 border-2 border-yellow-200">
+                <div class="text-xs text-gray-500 font-bold">최종 점수</div>
+                <div id="finalScore" class="text-3xl font-extrabold text-pink-500">0</div>
+                <div class="text-xs text-gray-400 mt-1 font-bold">지운 줄: <span id="finalLines" class="text-purple-600">0</span>개</div>
+            </div>
+
+            <button id="restartBtn" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold py-3 px-6 rounded-2xl text-lg shadow-lg w-full transition border-2 border-pink-300">
+                🔄 다시 놀기!
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pauseModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center border-4 border-blue-300 shadow-xl">
+            <div class="text-4xl mb-2">⏸️</div>
+            <h2 class="text-2xl font-extrabold text-blue-500 mb-4">잠시 쉬는 시간!</h2>
+            <button id="resumeBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-extrabold py-3 px-6 rounded-2xl text-lg shadow-lg w-full transition">
+                ▶️ 이어서 하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.1) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) { console.error(e); }
+            }
+
+            playMove() {
+                this.playTone(320, 'sine', 0.05, 0.08);
+            }
+
+            playRotate() {
+                this.playTone(480, 'triangle', 0.08, 0.1);
+            }
+
+            playDrop() {
+                this.playTone(200, 'sine', 0.12, 0.15);
+            }
+
+            playClear() {
+                if (this.muted || !this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        this.playTone(freq, 'triangle', 0.15, 0.12);
+                    }, idx * 60);
+                });
+            }
+
+            playMagic() {
+                if (this.muted || !this.ctx) return;
+                const notes = [400, 600, 800, 1200];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        this.playTone(freq, 'sine', 0.2, 0.15);
+                    }, idx * 50);
+                });
+            }
+
+            playGameOver() {
+                if (this.muted || !this.ctx) return;
+                const notes = [400, 350, 300, 250];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        this.playTone(freq, 'sawtooth', 0.2, 0.08);
+                    }, idx * 120);
+                });
+            }
+        }
+
+        const sounds = new SoundEngine();
+
+        const COLS = 10;
+        const ROWS = 18;
+        const BLOCK_SIZE = 24; // 240px width / 10 cols
+
+        const canvas = document.getElementById('tetrisCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        // Cute Pastel Palette for Kids
+        const SHAPES = [
+            { shape: [[1,1,1,1]], color: '#FF7675', name: 'I', eyeType: 'happy' },      // Soft Red/Pink
+            { shape: [[1,1],[1,1]], color: '#FFEAA7', name: 'O', eyeType: 'wink' },       // Soft Yellow
+            { shape: [[0,1,0],[1,1,1]], color: '#A29BFE', name: 'T', eyeType: 'cute' },    // Pastel Purple
+            { shape: [[1,0,0],[1,1,1]], color: '#74B9FF', name: 'L', eyeType: 'happy' },   // Soft Blue
+            { shape: [[0,0,1],[1,1,1]], color: '#FAB1A0', name: 'J', eyeType: 'wink' },    // Pastel Orange
+            { shape: [[0,1,1],[1,1,0]], color: '#55E6C1', name: 'S', eyeType: 'cute' },    // Mint Green
+            { shape: [[1,1,0],[0,1,1]], color: '#FD79A8', name: 'Z', eyeType: 'happy' }     // Bright Pink
+        ];
+
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let score = 0;
+        let lines = 0;
+        let level = 1;
+        let gameOver = false;
+        let isPaused = false;
+        let gameLoopId = null;
+        let lastTime = 0;
+        let dropCounter = 0;
+        let dropInterval = 1000; // default speed in ms
+
+        // Magic Skills Count
+        let magicWandCount = 3;
+        let slowTurtleCount = 2;
+
+        let currentPiece = null;
+        let nextPiece = null;
+        let currentDifficulty = 'easy'; // easy, normal, hard
+
+        function createPiece(shapeObj) {
+            return {
+                shape: shapeObj.shape,
+                color: shapeObj.color,
+                eyeType: shapeObj.eyeType,
+                x: Math.floor((COLS - shapeObj.shape[0].length) / 2),
+                y: 0
+            };
+        }
+
+        function getRandomPiece() {
+            const randomIndex = Math.floor(Math.random() * SHAPES.length);
+            return createPiece(SHAPES[randomIndex]);
+        }
+
+        // Draw a single kid block with rounded corners & cute eyes
+        function drawBlock(context, x, y, color, eyeType = null, isGhost = false, size = BLOCK_SIZE) {
+            const padding = 1.5;
+            const radius = 5;
+            const drawX = x * size + padding;
+            const drawY = y * size + padding;
+            const drawSize = size - padding * 2;
+
+            context.save();
+
+            if (isGhost) {
+                context.strokeStyle = color;
+                context.lineWidth = 2;
+                context.setLineDash([4, 4]);
+                context.strokeRect(drawX, drawY, drawSize, drawSize);
+                context.restore();
+                return;
+            }
+
+            // Block Fill with Gradient Effect
+            context.fillStyle = color;
+            context.beginPath();
+            context.roundRect(drawX, drawY, drawSize, drawSize, radius);
+            context.fill();
+
+            // Inner Highlight line for 3D bubble effect
+            context.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            context.lineWidth = 2;
+            context.beginPath();
+            context.moveTo(drawX + radius, drawY + 2);
+            context.lineTo(drawX + drawSize - radius, drawY + 2);
+            context.stroke();
+
+            // Draw Cute Face on blocks if size is large enough
+            if (eyeType && size >= 20) {
+                context.fillStyle = '#2d3436';
+                const centerX = drawX + drawSize / 2;
+                const centerY = drawY + drawSize / 2;
+
+                if (eyeType === 'happy') {
+                    // ^ ^ eyes
+                    context.beginPath();
+                    context.arc(centerX - 4, centerY - 2, 1.8, 0, Math.PI * 2);
+                    context.arc(centerX + 4, centerY - 2, 1.8, 0, Math.PI * 2);
+                    context.fill();
+
+                    // Cute Smile
+                    context.beginPath();
+                    context.arc(centerX, centerY + 1, 3, 0, Math.PI);
+                    context.stroke();
+                } else if (eyeType === 'wink') {
+                    // O ~ eye
+                    context.beginPath();
+                    context.arc(centerX - 4, centerY - 2, 2, 0, Math.PI * 2);
+                    context.fill();
+
+                    context.beginPath();
+                    context.moveTo(centerX + 2, centerY - 2);
+                    context.lineTo(centerX + 6, centerY - 2);
+                    context.stroke();
+
+                    // Smile
+                    context.beginPath();
+                    context.arc(centerX, centerY + 1, 3, 0, Math.PI);
+                    context.stroke();
+                } else {
+                    // Big round cute eyes
+                    context.beginPath();
+                    context.arc(centerX - 4, centerY - 1, 2.5, 0, Math.PI * 2);
+                    context.arc(centerX + 4, centerY - 1, 2.5, 0, Math.PI * 2);
+                    context.fill();
+
+                    // White eye reflections
+                    context.fillStyle = '#ffffff';
+                    context.beginPath();
+                    context.arc(centerX - 5, centerY - 2, 0.8, 0, Math.PI * 2);
+                    context.arc(centerX + 3, centerY - 2, 0.8, 0, Math.PI * 2);
+                    context.fill();
+                }
+            }
+
+            context.restore();
+        }
+
+        function collide(board, piece) {
+            const { shape, x, y } = piece;
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] !== 0) {
+                        const newX = x + c;
+                        const newY = y + r;
+                        if (newX < 0 || newX >= COLS || newY >= ROWS) {
+                            return true;
+                        }
+                        if (newY >= 0 && board[newY][newX] !== 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge(board, piece) {
+            piece.shape.forEach((row, r) => {
+                row.forEach((value, c) => {
+                    if (value !== 0) {
+                        board[piece.y + r][piece.x + c] = {
+                            color: piece.color,
+                            eyeType: piece.eyeType
+                        };
+                    }
+                });
+            });
+        }
+
+        function rotate(matrix) {
+            const result = matrix[0].map((_, index) => matrix.map(row => row[index]).reverse());
+            return result;
+        }
+
+        function playerRotate() {
+            if (!currentPiece || gameOver || isPaused) return;
+            sounds.init();
+            const originalShape = currentPiece.shape;
+            currentPiece.shape = rotate(currentPiece.shape);
+            
+            // Wall Kick logic
+            let offset = 1;
+            while (collide(board, currentPiece)) {
+                currentPiece.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > currentPiece.shape[0].length) {
+                    currentPiece.shape = originalShape;
+                    return;
+                }
+            }
+            sounds.playRotate();
+        }
+
+        function playerMove(dir) {
+            if (!currentPiece || gameOver || isPaused) return;
+            sounds.init();
+            currentPiece.x += dir;
+            if (collide(board, currentPiece)) {
+                currentPiece.x -= dir;
+            } else {
+                sounds.playMove();
+            }
+        }
+
+        function playerDrop() {
+            if (!currentPiece || gameOver || isPaused) return;
+            sounds.init();
+            currentPiece.y++;
+            if (collide(board, currentPiece)) {
+                currentPiece.y--;
+                merge(board, currentPiece);
+                sounds.playDrop();
+                clearRows();
+                spawnPiece();
+            }
+            dropCounter = 0;
+        }
+
+        function playerHardDrop() {
+            if (!currentPiece || gameOver || isPaused) return;
+            sounds.init();
+            while (!collide(board, currentPiece)) {
+                currentPiece.y++;
+            }
+            currentPiece.y--;
+            merge(board, currentPiece);
+            sounds.playDrop();
+            clearRows();
+            spawnPiece();
+            dropCounter = 0;
+        }
+
+        function clearRows() {
+            let linesCleared = 0;
+            outer: for (let r = ROWS - 1; r >= 0; r--) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === 0) continue outer;
+                }
+                const row = board.splice(r, 1)[0];
+                board.unshift(Array(COLS).fill(0));
+                linesCleared++;
+                r++; // Check same row index again after shift
+            }
+
+            if (linesCleared > 0) {
+                sounds.playClear();
+                lines += linesCleared;
+                score += linesCleared * 100 * level;
+
+                // Level up every 5 lines cleared
+                level = Math.floor(lines / 5) + 1;
+                updateDropInterval();
+
+                updateUI();
+                showComboText(linesCleared);
+            }
+        }
+
+        function showComboText(linesCleared) {
+            const popup = document.getElementById('comboPopup');
+            const text = document.getElementById('comboText');
+            
+            const msgs = ['멋져요! 🌟', '대단해요! 🎉', '슈퍼 테트리스! 🚀', '완벽해요! 👑'];
+            text.innerText = msgs[Math.min(linesCleared - 1, msgs.length - 1)];
+            
+            popup.classList.remove('hidden');
+            setTimeout(() => {
+                popup.classList.add('hidden');
+            }, 1000);
+        }
+
+        // Magic Wand Skill: Removes bottom-most non-empty row
+        function useMagicWand() {
+            if (magicWandCount <= 0 || gameOver || isPaused) return;
+            sounds.init();
+
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r].some(cell => cell !== 0)) {
+                    board.splice(r, 1);
+                    board.unshift(Array(COLS).fill(0));
+                    magicWandCount--;
+                    sounds.playMagic();
+                    showComboText(1);
+                    updateUI();
+                    break;
+                }
+            }
+        }
+
+        // Turtle Slow Skill: Temporarily doubles drop interval for 10 sec
+        function useSlowTurtle() {
+            if (slowTurtleCount <= 0 || gameOver || isPaused) return;
+            sounds.init();
+
+            slowTurtleCount--;
+            sounds.playMagic();
+            const originalInterval = dropInterval;
+            dropInterval *= 2.5;
+            updateUI();
+
+            setTimeout(() => {
+                dropInterval = originalInterval;
+            }, 10000);
+        }
+
+        function spawnPiece() {
+            if (!nextPiece) {
+                nextPiece = getRandomPiece();
+            }
+            currentPiece = nextPiece;
+            nextPiece = getRandomPiece();
+
+            drawNextPiece();
+
+            if (collide(board, currentPiece)) {
+                gameOver = true;
+                sounds.playGameOver();
+                document.getElementById('finalScore').innerText = score;
+                document.getElementById('finalLines').innerText = lines;
+                document.getElementById('gameOverModal').classList.remove('hidden');
+            }
+        }
+
+        function updateDropInterval() {
+            if (currentDifficulty === 'easy') {
+                dropInterval = Math.max(500, 1000 - (level - 1) * 50);
+            } else if (currentDifficulty === 'normal') {
+                dropInterval = Math.max(300, 800 - (level - 1) * 60);
+            } else {
+                dropInterval = Math.max(150, 500 - (level - 1) * 70);
+            }
+        }
+
+        function getGhostPiece() {
+            if (!currentPiece) return null;
+            const ghost = {
+                shape: currentPiece.shape,
+                color: currentPiece.color,
+                x: currentPiece.x,
+                y: currentPiece.y
+            };
+            while (!collide(board, ghost)) {
+                ghost.y++;
+            }
+            ghost.y--;
+            return ghost;
+        }
+
+        function draw() {
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid Helper Lines (Subtle)
+            ctx.strokeStyle = 'rgba(230, 230, 250, 0.5)';
+            ctx.lineWidth = 0.5;
+            for (let c = 0; c <= COLS; c++) {
+                ctx.beginPath();
+                ctx.moveTo(c * BLOCK_SIZE, 0);
+                ctx.lineTo(c * BLOCK_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let r = 0; r <= ROWS; r++) {
+                ctx.beginPath();
+                ctx.moveTo(0, r * BLOCK_SIZE);
+                ctx.lineTo(canvas.width, r * BLOCK_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw Placed Board Blocks
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== 0) {
+                        const cell = board[r][c];
+                        drawBlock(ctx, c, r, cell.color, cell.eyeType);
+                    }
+                }
+            }
+
+            // Draw Ghost Piece (Guide line for kids)
+            if (currentPiece) {
+                const ghost = getGhostPiece();
+                if (ghost && ghost.y > currentPiece.y) {
+                    ghost.shape.forEach((row, r) => {
+                        row.forEach((value, c) => {
+                            if (value !== 0) {
+                                drawBlock(ctx, ghost.x + c, ghost.y + r, currentPiece.color, null, true);
+                            }
+                        });
+                    });
+                }
+
+                // Draw Current Active Piece
+                currentPiece.shape.forEach((row, r) => {
+                    row.forEach((value, c) => {
+                        if (value !== 0) {
+                            drawBlock(ctx, currentPiece.x + c, currentPiece.y + r, currentPiece.color, currentPiece.eyeType);
+                        }
+                    });
+                });
+            }
+        }
+
+        function drawNextPiece() {
+            nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+            if (!nextPiece) return;
+
+            const shape = nextPiece.shape;
+            const size = 18;
+            const offsetX = (nextCanvas.width - shape[0].length * size) / 2;
+            const offsetY = (nextCanvas.height - shape.length * size) / 2;
+
+            shape.forEach((row, r) => {
+                row.forEach((value, c) => {
+                    if (value !== 0) {
+                        const drawX = offsetX + c * size;
+                        const drawY = offsetY + r * size;
+                        
+                        nextCtx.fillStyle = nextPiece.color;
+                        nextCtx.beginPath();
+                        nextCtx.roundRect(drawX, drawY, size - 1, size - 1, 4);
+                        nextCtx.fill();
+                    }
+                });
+            });
+        }
+
+        function update(time = 0) {
+            if (gameOver || isPaused) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                playerDrop();
+            }
+
+            draw();
+            gameLoopId = requestAnimationFrame(update);
+        }
+
+        function updateUI() {
+            document.getElementById('scoreDisplay').innerText = score;
+            document.getElementById('linesDisplay').innerText = lines;
+            document.getElementById('levelDisplay').innerText = level;
+            document.getElementById('magicWandCount').innerText = `${magicWandCount}개`;
+            document.getElementById('slowTurtleCount').innerText = `${slowTurtleCount}개`;
+        }
+
+        function startNewGame(difficulty) {
+            sounds.init();
+            currentDifficulty = difficulty;
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            score = 0;
+            lines = 0;
+            level = 1;
+            magicWandCount = difficulty === 'easy' ? 5 : 3;
+            slowTurtleCount = difficulty === 'easy' ? 4 : 2;
+            gameOver = false;
+            isPaused = false;
+
+            const labelMap = {
+                easy: '아장아장 모드 👶',
+                normal: '싱글벙글 모드 🎈',
+                hard: '씽씽 모드 🚀'
+            };
+            document.getElementById('modeLabel').innerText = labelMap[difficulty];
+
+            updateDropInterval();
+            updateUI();
+
+            nextPiece = getRandomPiece();
+            spawnPiece();
+
+            document.getElementById('startModal').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('pauseModal').classList.add('hidden');
+
+            lastTime = performance.now();
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+            gameLoopId = requestAnimationFrame(update);
+        }
+
+        // Button Event Handlers
+        document.getElementById('startEasyBtn').addEventListener('click', () => startNewGame('easy'));
+        document.getElementById('startNormalBtn').addEventListener('click', () => startNewGame('normal'));
+        document.getElementById('startHardBtn').addEventListener('click', () => startNewGame('hard'));
+        document.getElementById('restartBtn').addEventListener('click', () => startNewGame(currentDifficulty));
+
+        document.getElementById('leftBtn').addEventListener('click', () => playerMove(-1));
+        document.getElementById('rightBtn').addEventListener('click', () => playerMove(1));
+        document.getElementById('rotateBtn').addEventListener('click', () => playerRotate());
+        document.getElementById('downBtn').addEventListener('click', () => playerDrop());
+        document.getElementById('hardDropBtn').addEventListener('click', () => playerHardDrop());
+
+        document.getElementById('magicWandBtn').addEventListener('click', () => useMagicWand());
+        document.getElementById('slowTurtleBtn').addEventListener('click', () => useSlowTurtle());
+
+        // Sound Toggle Button
+        document.getElementById('soundToggleBtn').addEventListener('click', () => {
+            sounds.init();
+            sounds.muted = !sounds.muted;
+            const icon = document.getElementById('soundIcon');
+            if (sounds.muted) {
+                icon.className = 'fas fa-volume-mute';
+            } else {
+                icon.className = 'fas fa-volume-up';
+            }
+        });
+
+        // Pause Controls
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (gameOver) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                document.getElementById('pauseModal').classList.remove('hidden');
+            } else {
+                document.getElementById('pauseModal').classList.add('hidden');
+                lastTime = performance.now();
+                gameLoopId = requestAnimationFrame(update);
+            }
+        });
+
+        document.getElementById('resumeBtn').addEventListener('click', () => {
+            isPaused = false;
+            document.getElementById('pauseModal').classList.add('hidden');
+            lastTime = performance.now();
+            gameLoopId = requestAnimationFrame(update);
+        });
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (gameOver || isPaused) return;
+            switch(e.key) {
+                case 'ArrowLeft':
+                    playerMove(-1);
+                    break;
+                case 'ArrowRight':
+                    playerMove(1);
+                    break;
+                case 'ArrowDown':
+                    playerDrop();
+                    break;
+                case 'ArrowUp':
+                    playerRotate();
+                    break;
+                case ' ':
+                    playerHardDrop();
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
